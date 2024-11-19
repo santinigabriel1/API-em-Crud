@@ -33,12 +33,16 @@ app.get('/', (req, res) => {
 });
 
 // Rota de Criação (POST /users) com validação
-app.post('/users', validateUser, async (req, res) => {
+app.post('/users', async (req, res) => {
   try {
     const { name, email } = req.body;
     const newUser = await User.create({ name, email });
     res.status(201).json({ message: 'Usuário criado!', user: newUser });
   } catch (error) {
+    if (error.name === 'SequelizeValidationError') {
+      const validationErrors = error.errors.map(err => err.message);
+      return res.status(400).json({error: 'Erro de validação', details: validationErrors});
+    }
     res.status(400).json({ error: 'Erro ao criar usuário', details: error.message });
   }
 });
@@ -102,15 +106,13 @@ app.patch('/users/:id', async (req, res) => {
       return res.status(404).json({ message: 'Usuário não encontrado' });
     }
 
-    // Atualiza apenas os campos fornecidos no corpo da requisição
-    const { name, email } = req.body;
-    if (name) user.name = name;
-    if (email) user.email = email;
-
-    await user.save(); // Salva as alterações no banco de dados
-
-    res.status(200).json({ message: 'Usuário atualizado parcialmente!', user });
+    const updatedUser = await user.update(req.body);
+    res.status(200).json({message: 'Usuário atualizado parcialmente', user:updatedUser});
   } catch (error) {
-    res.status(400).json({ error: 'Erro ao atualizar usuário', details: error.message });
-  }
+    if (error.name === 'sequelizeValidationError') {
+      const validationErrors = error.errors.map(err => err.message);
+      return res.status(400).json({error: 'Erro de validação', details: validationErrors}); 
+    }
+    res.status(400).json({error: 'Erro ao atualizar usuário', details: error.message});
+  } 
 });
