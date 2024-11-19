@@ -1,4 +1,5 @@
 const { Sequelize, DataTypes } = require('sequelize');
+const bcrypt = require('bcrypt');
 
 // Configura uma conexão com o banco SQLite
 const sequelize = new Sequelize({
@@ -11,22 +12,27 @@ const User = sequelize.define('User', {
   name: {
     type: DataTypes.STRING,
     allowNull: false,
-    validate: {
-      notEmpty: {msg: 'O nome não pode estar vazio'},
-      len: {args: [3, 255], msg: 'O nome deve ter entre 3 e 255 caracteres'},
-    },
   },
   email: {
     type: DataTypes.STRING,
     allowNull: false,
     unique: true,
-    validate: {
-      notEmpty: {msg: 'O email não pode estar vazio'},
-      isEmail: {msg: 'O email deve ser válido'},
-    },
   },
+  password: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    defaultValue: 'defaultPassword'
+  }
 }, {
-  tableName: 'users'
+  tableName: 'users',
+  hooks: {
+    //Antes de salvar ou atualizar, o password será hash
+    beforeSave: async (user) => {
+      if (user.password) {
+        user.password = await bcrypt.hash(user. password, 10);
+      }
+    }
+  }
 });
 
 module.exports = { User, sequelize };
