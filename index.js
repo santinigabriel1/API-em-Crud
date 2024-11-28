@@ -53,10 +53,12 @@ app.post('/register', async (req, res) => {
     }
 
     // Gerar o hash da senha
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
 
     // Criar o usuário
     const newUser = await User.create({ name, email, password: hashedPassword });
+    newUser.password = "";
 
     res.status(201).json({ message: 'Usuário registrado com sucesso!', user: newUser });
   } catch (error) {
@@ -68,26 +70,52 @@ app.post('/register', async (req, res) => {
 app.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
+    console.log(email, password, !email, !password);
 
     if (!email || !password) {
-      return res.status(400).json({ error: 'Email e senha são obrigatórios!' });
+      return res.status(400).json(
+        {
+          result: false,
+          data: "",
+          info: "E-mal e senha são obrigatórios!!!"
+        }
+      );
     }
 
     const user = await User.findOne({ where: { email } });
     if (!user) {
-      return res.status(400).json({ error: 'Email incorreto!' });
+      return res.status(400).json(
+        {
+          result: false,
+          data: "",
+          info: "E-mal e senha incorreto!!! (E-mail)"
+        }
+      );
     }
 
     // Comparar a senha informada com a senha hashada
-    const passwordMatch = await bcrypt.compare(password, user.password);
-    if (!passwordMatch) {
-      return res.status(400).json({ error: 'Senha incorreta!' });
+
+    let senhaEhValida = await bcrypt.compare(password, user.password);
+    if(senhaEhValida){
+      user.password = "";
+      return res.status(202).json(
+        {
+          result: true,
+          data: user,
+          info: "Usuário logado com sucesso!!!"
+        }
+      );
+    }
+    else{
+      return res.status(404).json(
+        {
+          result: false,
+          data: "",
+          info: "E-mal e senha incorreto!!! (Senha)"
+        }
+      );
     }
 
-    // Gerar um token JWT
-    const token = jwt.sign({ id: user.id, email: user.email }, SECRET_KEY, { expiresIn: '1h' });
-
-    res.status(200).json({ message: 'Login bem-sucedido!', token });
   } catch (error) {
     res.status(500).json({ error: 'Erro ao fazer login.', details: error.message });
   }
